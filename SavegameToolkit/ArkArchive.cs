@@ -182,13 +182,9 @@ namespace SavegameToolkit {
             }
 
             if (multibyte) {
-                char[] buffer = isLarge ? new char[absSize] : smallCharBuffer;
-                mbbReader.Read(buffer, 0, absSize);
-                string result = new string(buffer, 0, absSize - 1);
-
-                mbb.Seek(absSize * 2, SeekOrigin.Current);
-
-                return result;
+                byte[] buffer = isLarge ? new byte[absSize] : smallByteBuffer;
+                mbbReader.Read(buffer, 0, readSize);
+                return Encoding.Unicode.GetString(buffer, 0, readSize - 2);
             } else {
                 byte[] buffer = isLarge ? new byte[absSize] : smallByteBuffer;
                 mbb.Read(buffer, 0, absSize);
