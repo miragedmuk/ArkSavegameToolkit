@@ -254,7 +254,7 @@ namespace SavegameToolkit {
             int nameCount = archive.ReadInt();
 
             Names.Clear();
-            for (int nameIndex = 0; nameIndex < nameCount; nameIndex++) {
+            while (nameCount-- > 0) {
                 Names.Add(archive.ReadName());
             }
 

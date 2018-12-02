@@ -1,6 +1,5 @@
 ﻿using System.Linq;
 using SavegameToolkit;
-using SavegameToolkit.Propertys;
 using SavegameToolkit.Types;
 
 namespace SavegameToolkitAdditions {

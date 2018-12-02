@@ -205,7 +205,7 @@ namespace SavegameToolkit {
 
                 Objects.Clear();
                 ObjectMap.Clear();
-                for (int n = 0; n < count; n++) {
+                while (count-- > 0) {
                     addObject(new GameObject(archive), options.BuildComponentTree);
                 }
             } else {
