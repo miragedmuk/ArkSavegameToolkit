@@ -97,13 +97,15 @@ namespace SavegameToolkit
                 readBinaryHibernation(archive, options);
             }
 
-            // Now parse cryo creature data
-            foreach (var cryo in this.Objects.Where(x => x.ClassName.ToString().Contains("Cryop")).ToList())
+            // Parse creatures in cryopods and soultraps (from the mod DinoStorageV2)
+            foreach (var cryo in this.Objects.Where(x => x.ClassString.Contains("Cryop") || x.ClassString.Contains("SoulTrap_")).ToList())
             {
-                StructPropertyList customData = cryo.GetPropertyValue<IArkArray, ArkArrayStruct>("CustomItemDatas")?.FirstOrDefault() as StructPropertyList;
-                PropertyStruct customDataBytes = customData?.Properties.FirstOrDefault(p => p.NameString == "CustomDataBytes") as PropertyStruct;
+                ArkArrayStruct customItemDatas = cryo.GetPropertyValue<IArkArray, ArkArrayStruct>("CustomItemDatas");
+                StructPropertyList customDinoData = (StructPropertyList)customItemDatas?.FirstOrDefault(cd => ((StructPropertyList)cd).GetTypedProperty<PropertyName>("CustomDataName").Value.Name == "Dino");
+                PropertyStruct customDataBytes = customDinoData?.Properties.FirstOrDefault(p => p.NameString == "CustomDataBytes") as PropertyStruct;
                 PropertyArray byteArrays = (customDataBytes?.Value as StructPropertyList)?.Properties.FirstOrDefault(property => property.NameString == "ByteArrays") as PropertyArray;
                 ArkArrayStruct byteArraysValue = byteArrays?.Value as ArkArrayStruct;
+                if (!(byteArraysValue?.Any() ?? false)) continue;
                 ArkArrayUInt8 creatureBytes = ((byteArraysValue?[0] as StructPropertyList)?.Properties.FirstOrDefault(p => p.NameString == "Bytes") as PropertyArray)?.Value as ArkArrayUInt8;
                 if (creatureBytes == null) continue;
 
