@@ -120,6 +120,10 @@ namespace SavegameToolkit
                     statusobject.LoadProperties(cryoArchive, new GameObject(), 0);
                     dino.IsCryo = true;
 
+                    // add cryopod object as parent (ActorIDs are not unique across cryopodded and non-cryopodded creatures)
+                    dino.Names.Insert(1, cryo.Names[0]);
+                    statusobject.Names.Insert(2, cryo.Names[0]);
+
                     addObject(dino, true);
                     addObject(statusobject, true);
 
