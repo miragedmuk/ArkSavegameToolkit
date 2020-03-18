@@ -97,13 +97,16 @@ namespace SavegameToolkit
                 readBinaryHibernation(archive, options);
             }
 
-            // Now parse cryo creature data
-            foreach (var cryo in this.Objects.Where(x => x.ClassName.ToString().Contains("Cryop")).ToList())
+            // Parse creatures in cryopods and soultraps (from the mod DinoStorageV2)
+            foreach (var cryo in this.Objects.Where(x => x.ClassString.Contains("Cryop") || x.ClassString.Contains("SoulTrap_")).ToList())
             {
-                StructPropertyList customData = cryo.GetPropertyValue<IArkArray, ArkArrayStruct>("CustomItemDatas")?.FirstOrDefault() as StructPropertyList;
-                PropertyStruct customDataBytes = customData?.Properties.FirstOrDefault(p => p.NameString == "CustomDataBytes") as PropertyStruct;
+                ArkArrayStruct customItemDatas = cryo.GetPropertyValue<IArkArray, ArkArrayStruct>("CustomItemDatas");
+                StructPropertyList customDinoData = (StructPropertyList)customItemDatas?.FirstOrDefault(cd => ((StructPropertyList)cd).GetTypedProperty<PropertyName>("CustomDataName").Value.Name == "Dino");
+                PropertyStruct customDataBytes = customDinoData?.Properties.FirstOrDefault(p => p.NameString == "CustomDataBytes") as PropertyStruct;
                 PropertyArray byteArrays = (customDataBytes?.Value as StructPropertyList)?.Properties.FirstOrDefault(property => property.NameString == "ByteArrays") as PropertyArray;
                 ArkArrayStruct byteArraysValue = byteArrays?.Value as ArkArrayStruct;
+                if (!(byteArraysValue?.Any() ?? false)) continue;
+
                 ArkArrayUInt8 creatureBytes = ((byteArraysValue?[0] as StructPropertyList)?.Properties.FirstOrDefault(p => p.NameString == "Bytes") as PropertyArray)?.Value as ArkArrayUInt8;
                 if (creatureBytes == null) continue;
 
@@ -111,19 +114,43 @@ namespace SavegameToolkit
 
                 using (ArkArchive cryoArchive = new ArkArchive(cryoStream))
                 {
-                    cryoArchive.ReadBytes(4);
-                    var dino = new GameObject(cryoArchive);
-                    var statusobject = new GameObject(cryoArchive);
-                    dino.LoadProperties(cryoArchive, new GameObject(), 0);
-                    statusobject.LoadProperties(cryoArchive, new GameObject(), 0);
-                    dino.IsCryo = true;
+                    // number of serialized objects
+                    int objCount = cryoArchive.ReadInt();
+                    if (objCount == 0) continue;
 
-                    addObject(dino, true);
-                    addObject(statusobject, true);
+                    var storedGameObjects = new List<GameObject>(objCount);
+                    for (int oi = 0; oi < objCount; oi++)
+                    {
+                        storedGameObjects.Add(new GameObject(cryoArchive));
+                    }
+                    foreach (var ob in storedGameObjects)
+                    {
+                        ob.LoadProperties(cryoArchive, new GameObject(), 0);
+                    }
 
-                    //hack the id's so that the dino points to the appropriate dinostatuscomponent
-                    var statusComponentRef = dino.GetTypedProperty<PropertyObject>("MyCharacterStatusComponent");
-                    statusComponentRef.Value.ObjectId = statusobject.Id;
+                    // assume the first object is the creature object
+                    string creatureActorId = storedGameObjects[0].Names[0].Name;
+                    storedGameObjects[0].IsCryo = true;
+
+                    // add cryopod object as parent to all child objects of the creature object (ActorIDs are not unique across cryopodded and non-cryopodded creatures)
+                    // assume that child objects are stored after their parent objects
+                    foreach (var ob in storedGameObjects)
+                    {
+                        int nIndex = ob.Names.FindIndex(n => n.Name == creatureActorId);
+                        if (nIndex != -1)
+                        {
+                            ob.Names.Insert(nIndex + 1, cryo.Names[0]);
+                            addObject(ob, true);
+                        }
+                    }
+
+                    // assign the created ID of the dinoStatusComponent to the creature's property.
+                    var statusComponentObject = storedGameObjects.FirstOrDefault(ob => ob.ClassString?.StartsWith("DinoCharacterStatusComponent") ?? false);
+                    if (statusComponentObject != null)
+                    {
+                        var statusComponentRef = storedGameObjects[0].GetTypedProperty<PropertyObject>("MyCharacterStatusComponent");
+                        statusComponentRef.Value.ObjectId = statusComponentObject.Id;
+                    }
                 }
             }
 
