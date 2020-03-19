@@ -129,14 +129,18 @@ namespace SavegameToolkit
                     }
 
                     // assume the first object is the creature object
-                    string creatureActorId = storedGameObjects[0].Names[0].Name;
+                    string creatureActorId = storedGameObjects[0].Names[0].ToString();
                     storedGameObjects[0].IsCryo = true;
+
+                    // the tribe name is stored in `TamerString`, non-cryoed creatures have the property `TribeName` for that.
+                    if (!storedGameObjects[0].HasAnyProperty("TribeName") && storedGameObjects[0].HasAnyProperty("TamerString"))
+                        storedGameObjects[0].Properties.Add(new PropertyString("TribeName", storedGameObjects[0].GetPropertyValue<string>("TamerString")));
 
                     // add cryopod object as parent to all child objects of the creature object (ActorIDs are not unique across cryopodded and non-cryopodded creatures)
                     // assume that child objects are stored after their parent objects
                     foreach (var ob in storedGameObjects)
                     {
-                        int nIndex = ob.Names.FindIndex(n => n.Name == creatureActorId);
+                        int nIndex = ob.Names.FindIndex(n => n.ToString() == creatureActorId);
                         if (nIndex != -1)
                         {
                             ob.Names.Insert(nIndex + 1, cryo.Names[0]);
