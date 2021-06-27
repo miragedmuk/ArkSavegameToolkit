@@ -1,7 +1,7 @@
 # Ark Savegame Toolkit
 Basically libraries to analyze savegames files for ARK: Survival Evolved
 
-A C# rewrite from Java of Qowyn's [ark-savegame-toolkit](https://github.com/Qowyn/ark-savegame-toolkit) v0.8.1 and some parts of [ark-tools](https://github.com/Qowyn/ark-tools) v0.6.4.
+A C# rewrite by [Flachdachs](https://github.com/Flachdachs) from Java of Qowyn's [ark-savegame-toolkit](https://github.com/Qowyn/ark-savegame-toolkit) v0.8.1 and some parts of [ark-tools](https://github.com/Qowyn/ark-tools) v0.6.4. This fork by cadon just adds the option to import creatures in cryopods or other containers.
 
 ### SavegameToolkit
 

@@ -1,8 +1,10 @@
 using System;
 
-namespace SavegameToolkit {
+namespace SavegameToolkit
+{
 
-    public class ReadingOptions : BaseOptions {
+    public class ReadingOptions : BaseOptions
+    {
         /// <summary>
         /// Whether the names of data files will be read or skipped over.
         /// 
@@ -56,9 +58,18 @@ namespace SavegameToolkit {
         /// </summary>
         public bool HibernationObjectProperties { get; private set; } = true;
 
+
+        /// <summary>
+        /// Whether creatures in cryopods will be read or skipped over.
+        ///
+        /// <code>true</code> if reading, <code>false</code> if skipping
+        /// </summary>
+        public bool CryopodCreatures { get; private set; } = true;
+
         public bool BuildComponentTree { get; private set; }
 
-        public new static ReadingOptions Create() {
+        public new static ReadingOptions Create()
+        {
             return new ReadingOptions();
         }
 
@@ -68,7 +79,8 @@ namespace SavegameToolkit {
         /// </summary>
         /// <param name="objectFilter"></param>
         /// <returns>self</returns>
-        public ReadingOptions WithObjectFilter(Predicate<GameObject> objectFilter) {
+        public ReadingOptions WithObjectFilter(Predicate<GameObject> objectFilter)
+        {
             ObjectFilter = objectFilter;
             return this;
         }
@@ -78,7 +90,8 @@ namespace SavegameToolkit {
         /// </summary>
         /// <param name="dataFiles"><code>true</code> if reading, <code>false</code> if skipping</param>
         /// <returns>self</returns>
-        public ReadingOptions WithDataFiles(bool dataFiles) {
+        public ReadingOptions WithDataFiles(bool dataFiles)
+        {
             DataFiles = dataFiles;
             return this;
         }
@@ -88,12 +101,14 @@ namespace SavegameToolkit {
         /// </summary>
         /// <param name="embeddedData"><code>true</code> if reading, <code>false</code> if skipping</param>
         /// <returns>self</returns>
-        public ReadingOptions WithEmbeddedData(bool embeddedData) {
+        public ReadingOptions WithEmbeddedData(bool embeddedData)
+        {
             EmbeddedData = embeddedData;
             return this;
         }
 
-        public ReadingOptions WithDataFilesObjectMap(bool dataFilesObjectMap) {
+        public ReadingOptions WithDataFilesObjectMap(bool dataFilesObjectMap)
+        {
             DataFilesObjectMap = dataFilesObjectMap;
             return this;
         }
@@ -103,7 +118,8 @@ namespace SavegameToolkit {
         /// </summary>
         /// <param name="gameObjects"><code>true</code> if reading, <code>false</code> if skipping</param>
         /// <returns>self</returns>
-        public ReadingOptions WithGameObjects(bool gameObjects) {
+        public ReadingOptions WithGameObjects(bool gameObjects)
+        {
             GameObjects = gameObjects;
             return this;
         }
@@ -115,7 +131,8 @@ namespace SavegameToolkit {
         /// </summary>
         /// <param name="gameObjectProperties"><code>true</code> if reading, <code>false</code> if skipping</param>
         /// <returns>self</returns>
-        public ReadingOptions WithGameObjectProperties(bool gameObjectProperties) {
+        public ReadingOptions WithGameObjectProperties(bool gameObjectProperties)
+        {
             GameObjectProperties = gameObjectProperties;
             return this;
         }
@@ -125,7 +142,8 @@ namespace SavegameToolkit {
         /// </summary>
         /// <param name="hibernation"><code>true</code> if reading, <code>false</code> if skipping</param>
         /// <returns>self</returns>
-        public ReadingOptions WithHibernation(bool hibernation) {
+        public ReadingOptions WithHibernation(bool hibernation)
+        {
             Hibernation = hibernation;
             return this;
         }
@@ -136,27 +154,43 @@ namespace SavegameToolkit {
         /// </summary>
         /// <param name="hibernationObjectProperties"><code>true</code> if reading, <code>false</code> if skipping</param>
         /// <returns>self</returns>
-        public ReadingOptions WithHibernationObjectProperties(bool hibernationObjectProperties) {
+        public ReadingOptions WithHibernationObjectProperties(bool hibernationObjectProperties)
+        {
             HibernationObjectProperties = hibernationObjectProperties;
             return this;
         }
 
-        public ReadingOptions WithBuildComponentTree(bool buildComponentTree) {
+        /// <summary>
+        /// Sets whether creatures in cryopods will be read or skipped over.
+        /// </summary>
+        /// <param name="cryopodCreatures"><code>true</code> if reading, <code>false</code> if skipping</param>
+        /// <returns>self</returns>
+        public ReadingOptions WithCryopodCreatures(bool cryopodCreatures)
+        {
+            CryopodCreatures = cryopodCreatures;
+            return this;
+        }
+
+        public ReadingOptions WithBuildComponentTree(bool buildComponentTree)
+        {
             BuildComponentTree = buildComponentTree;
             return this;
         }
 
-        public new ReadingOptions Parallel(bool parallel) {
+        public new ReadingOptions Parallel(bool parallel)
+        {
             base.Parallel(parallel);
             return this;
         }
 
-        public new ReadingOptions WithMemoryMapping(bool memoryMapping) {
+        public new ReadingOptions WithMemoryMapping(bool memoryMapping)
+        {
             base.WithMemoryMapping(memoryMapping);
             return this;
         }
 
-        public new ReadingOptions WithThreadCount(int threadCount) {
+        public new ReadingOptions WithThreadCount(int threadCount)
+        {
             base.WithThreadCount(threadCount);
             return this;
         }
