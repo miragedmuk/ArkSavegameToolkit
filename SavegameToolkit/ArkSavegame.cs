@@ -390,10 +390,10 @@ namespace SavegameToolkit
                 PropertyStruct customDataBytes = customDinoData?.Properties.FirstOrDefault(p => p.NameString == "CustomDataBytes") as PropertyStruct;
                 PropertyArray byteArrays = (customDataBytes?.Value as StructPropertyList)?.Properties.FirstOrDefault(property => property.NameString == "ByteArrays") as PropertyArray;
                 ArkArrayStruct byteArraysValue = byteArrays?.Value as ArkArrayStruct;
-                if (!(byteArraysValue?.Any() ?? false)) continue;
+                if (byteArraysValue?.Any() != true) continue;
 
                 ArkArrayUInt8 creatureBytes = ((byteArraysValue[0] as StructPropertyList)?.Properties.FirstOrDefault(p => p.NameString == "Bytes") as PropertyArray)?.Value as ArkArrayUInt8;
-                if (creatureBytes == null) continue;
+                if (creatureBytes?.Any() != true) continue;
 
                 var cryoStream = new System.IO.MemoryStream(creatureBytes.ToArray<byte>());
 
