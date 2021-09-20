@@ -175,14 +175,14 @@ namespace SavegameToolkit {
                 throw new IndexOutOfRangeException();
             }
 
-            bool isLarge = absSize > bufferSize;
+            bool isLarge = readSize > bufferSize;
 
             if (isLarge && reportLargeStrings) {
                 DebugMessage($"String ({absSize}) larger than internal Buffer ({bufferSize})");
             }
 
             if (multibyte) {
-                byte[] buffer = isLarge ? new byte[absSize] : smallByteBuffer;
+                byte[] buffer = isLarge ? new byte[readSize] : smallByteBuffer;
                 mbbReader.Read(buffer, 0, readSize);
                 return Encoding.Unicode.GetString(buffer, 0, readSize - 2);
             } else {
