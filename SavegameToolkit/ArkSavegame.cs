@@ -458,11 +458,29 @@ namespace SavegameToolkit
                     }
 
                     // the mating cooldown is not stored in the creature data, but in the cryopod data. It's at index 2 in the Double array in the CustomDataDouble of the cryo object
-                    PropertyStruct customDataDoubles = customDinoData?.Properties.FirstOrDefault(p => p.NameString == "CustomDataDoubles") as PropertyStruct;
+                    var isSoulTrap = cryo.ClassString.Contains("SoulTrap_");
+
+                    PropertyStruct customDataDoubles = customDinoData.Properties.FirstOrDefault(p => p.NameString == "CustomDataDoubles") as PropertyStruct;
                     var doubleArray = ((customDataDoubles?.Value as StructPropertyList)?.Properties.FirstOrDefault(property => property.NameString == "Doubles") as PropertyArray)?.Value as ArkArrayDouble;
-                    if (doubleArray != null && doubleArray.Count > 2 && doubleArray[2] > 0)
+                    if (doubleArray != null)
                     {
-                        storedGameObjects[0].Properties.Add(new PropertyDouble("NextAllowedMatingTime", doubleArray[2]));
+                        // for SoulTraps the matingCooldown is stored as delta seconds
+                        if (isSoulTrap)
+                        {
+                            if (doubleArray.Count > 0 && doubleArray[0] > 0)
+                            {
+                                var creatureCaughtInSoulBallSecondsAgo = 0; // GameTime - cryo.GetPropertyValue<double>("LastAutoDurabilityDecreaseTime"); // TODO this is not yet correct
+                                storedGameObjects[0].Properties.Add(new PropertyDouble("NextAllowedMatingTime", doubleArray[0] + GameTime - creatureCaughtInSoulBallSecondsAgo));
+                            }
+                        }
+                        // for vanilla cryopods the matingCooldown is saved as absolute seconds in gametime
+                        else
+                        {
+                            if (doubleArray.Count > 2 && doubleArray[2] > 0)
+                            {
+                                storedGameObjects[0].Properties.Add(new PropertyDouble("NextAllowedMatingTime", doubleArray[2]));
+                            }
+                        }
                     }
                 }
             }
