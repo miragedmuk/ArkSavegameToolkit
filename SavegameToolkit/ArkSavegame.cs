@@ -457,9 +457,22 @@ namespace SavegameToolkit
                             statusComponentRef.Value.ObjectId = statusComponentObject.Id;
                     }
 
-                    // the mating cooldown is not stored in the creature data, but in the cryopod data. It's at index 2 in the Double array in the CustomDataDouble of the cryo object
                     var isSoulTrap = cryo.ClassString.Contains("SoulTrap_");
 
+                    if (isSoulTrap)
+                    {
+                        // extract new name if creature was renamed in the soulTrap
+                        var customDataStrings = customDinoData.Properties.FirstOrDefault(p => p.NameString == "CustomDataStrings") as PropertyArray;
+                        if (customDataStrings?.Value is ArkArrayString stringArray
+                            && stringArray.Count > 16
+                            && !string.IsNullOrEmpty(stringArray[16]))
+                        {
+                            storedGameObjects[0].Properties.RemoveAll(p => p.NameString == "TamedName");
+                            storedGameObjects[0].Properties.Add(new PropertyString("TamedName", stringArray[16]));
+                        }
+                    }
+
+                    // the mating cooldown is not stored in the creature data, but in the cryoPod data. It's at index 2 in the Double array in the CustomDataDouble of the cryo object
                     PropertyStruct customDataDoubles = customDinoData.Properties.FirstOrDefault(p => p.NameString == "CustomDataDoubles") as PropertyStruct;
                     var doubleArray = ((customDataDoubles?.Value as StructPropertyList)?.Properties.FirstOrDefault(property => property.NameString == "Doubles") as PropertyArray)?.Value as ArkArrayDouble;
                     if (doubleArray != null)
@@ -473,7 +486,7 @@ namespace SavegameToolkit
                                 storedGameObjects[0].Properties.Add(new PropertyDouble("NextAllowedMatingTime", doubleArray[0] + GameTime - creatureCaughtInSoulBallSecondsAgo));
                             }
                         }
-                        // for vanilla cryopods the matingCooldown is saved as absolute seconds in gametime
+                        // for vanilla cryoPods the matingCooldown is saved as absolute seconds in game time
                         else
                         {
                             if (doubleArray.Count > 2 && doubleArray[2] > 0)
