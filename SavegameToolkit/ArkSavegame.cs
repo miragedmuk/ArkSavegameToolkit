@@ -461,14 +461,24 @@ namespace SavegameToolkit
 
                     if (isSoulTrap)
                     {
-                        // extract new name if creature was renamed in the soulTrap
+                        // extract changed creature properties if they were changed in the soulTrap
                         var customDataStrings = customDinoData.Properties.FirstOrDefault(p => p.NameString == "CustomDataStrings") as PropertyArray;
-                        if (customDataStrings?.Value is ArkArrayString stringArray
-                            && stringArray.Count > 16
-                            && !string.IsNullOrEmpty(stringArray[16]))
+                        if (customDataStrings?.Value is ArkArrayString stringArray)
                         {
-                            storedGameObjects[0].Properties.RemoveAll(p => p.NameString == "TamedName");
-                            storedGameObjects[0].Properties.Add(new PropertyString("TamedName", stringArray[16]));
+                            // name
+                            if (stringArray.Count > 16
+                                && !string.IsNullOrEmpty(stringArray[16]))
+                            {
+                                storedGameObjects[0].Properties.RemoveAll(p => p.NameString == "TamedName");
+                                storedGameObjects[0].Properties.Add(new PropertyString("TamedName", stringArray[16]));
+                            }
+                            // neutered / spayed
+                            if (stringArray.Count > 3
+                                && stringArray[3] == "1")
+                            {
+                                storedGameObjects[0].Properties.RemoveAll(p => p.NameString == "bNeutered");
+                                storedGameObjects[0].Properties.Add(new PropertyBool("bNeutered", true));
+                            }
                         }
                     }
 
