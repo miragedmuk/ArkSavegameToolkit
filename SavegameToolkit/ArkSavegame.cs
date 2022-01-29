@@ -383,6 +383,9 @@ namespace SavegameToolkit
 
             // Parse creatures in cryopods and soultraps (from the mod DinoStorageV2)
             var cryopods = Objects.Where(x => x.ClassString.Contains("Cryop") || x.ClassString.Contains("SoulTrap_")).ToArray();
+
+            var soulTrapContainer = new Dictionary<int, string>(); // used for cached lookup of owner
+
             foreach (var cryo in cryopods)
             {
                 ArkArrayStruct customItemDatas = cryo.GetPropertyValue<IArkArray, ArkArrayStruct>("CustomItemDatas");
@@ -418,8 +421,27 @@ namespace SavegameToolkit
                     storedGameObjects[0].IsCryo = true;
 
                     // the tribe name is stored in `TamerString`, non-cryoed creatures have the property `TribeName` for that.
-                    if (!storedGameObjects[0].HasAnyProperty("TribeName") && storedGameObjects[0].HasAnyProperty("TamerString"))
-                        storedGameObjects[0].Properties.Add(new PropertyString("TribeName", storedGameObjects[0].GetPropertyValue<string>("TamerString")));
+                    if (!storedGameObjects[0].HasAnyProperty("TribeName"))
+                    {
+                        if (storedGameObjects[0].HasAnyProperty("TamerString"))
+                            storedGameObjects[0].Properties.Add(new PropertyString("TribeName", storedGameObjects[0].GetPropertyValue<string>("TamerString")));
+                        else
+                        {
+                            // if a creature is cryoed and unclaimed, determine the owner of the container the cryopod is in and set that as the owner
+                            var ownerInventoryProperty = cryo.GetPropertyValue<ObjectReference>("OwnerInventory");
+                            if (!soulTrapContainer.TryGetValue(ownerInventoryProperty.ObjectId, out var ownerString))
+                            {
+                                var inventoryObject = Objects.FirstOrDefault(o => o.Id == ownerInventoryProperty.ObjectId);
+                                ownerString = inventoryObject?.Parent?.GetPropertyValue<string>("OwnerName");
+                                soulTrapContainer[ownerInventoryProperty.ObjectId] = ownerString;
+                            }
+
+                            if (!string.IsNullOrEmpty(ownerString))
+                            {
+                                storedGameObjects[0].Properties.Add(new PropertyString("TribeName", ownerString));
+                            }
+                        }
+                    }
 
                     // add cryopod object as parent to all child objects of the creature object (ActorIDs are not unique across cryopodded and non-cryopodded creatures)
                     // assume that child objects are stored after their parent objects
