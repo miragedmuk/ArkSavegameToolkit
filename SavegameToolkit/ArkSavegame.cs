@@ -457,7 +457,7 @@ namespace SavegameToolkit
 
                         if (i == 0)
                         {
-							ob.Parent = cryo;
+                            ob.Parent = cryo;
                             for (int ii = 1; ii < objCount; ii++)
                                 ob.AddComponent(storedGameObjects[ii]);
                         }
