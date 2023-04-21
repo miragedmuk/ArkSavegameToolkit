@@ -451,16 +451,20 @@ namespace SavegameToolkit
                         {
                             // if a creature is cryoed and unclaimed, determine the owner of the container the cryopod is in and set that as the owner
                             var ownerInventoryProperty = cryo.GetPropertyValue<ObjectReference>("OwnerInventory");
-                            if (!soulTrapContainer.TryGetValue(ownerInventoryProperty.ObjectId, out var ownerString))
+                            if (ownerInventoryProperty != null)
                             {
-                                var inventoryObject = Objects.FirstOrDefault(o => o.Id == ownerInventoryProperty.ObjectId);
-                                ownerString = inventoryObject?.Parent?.GetPropertyValue<string>("OwnerName");
-                                soulTrapContainer[ownerInventoryProperty.ObjectId] = ownerString;
-                            }
+                                if (!soulTrapContainer.TryGetValue(ownerInventoryProperty.ObjectId, out var ownerString))
+                                {
+                                    var inventoryObject =
+                                        Objects.FirstOrDefault(o => o.Id == ownerInventoryProperty.ObjectId);
+                                    ownerString = inventoryObject?.Parent?.GetPropertyValue<string>("OwnerName");
+                                    soulTrapContainer[ownerInventoryProperty.ObjectId] = ownerString;
+                                }
 
-                            if (!string.IsNullOrEmpty(ownerString))
-                            {
-                                storedGameObjects[0].Properties.Add(new PropertyString("TribeName", ownerString));
+                                if (!string.IsNullOrEmpty(ownerString))
+                                {
+                                    storedGameObjects[0].Properties.Add(new PropertyString("TribeName", ownerString));
+                                }
                             }
                         }
                     }
