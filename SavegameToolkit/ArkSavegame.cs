@@ -388,7 +388,7 @@ namespace SavegameToolkit
             while (archive.Position < nameTableOffset)
             {
                 //regardless of anything before the hibernated class count always seems to follow immediately after this byte in all save formats I have worked on.
-                if (archive.ReadSByte() == -52) 
+                if (archive.ReadSByte() == -52)
                 {
                     break;
                 }
@@ -444,126 +444,115 @@ namespace SavegameToolkit
             if (!options.CryopodCreatures) return;
 
             var inventoryContainers = Objects.Where(x => x.GetPropertyValue<ObjectReference>("MyInventoryComponent") != null).ToList();
-
-
+            
             var validStored = Objects
                 .Where(o =>
                         (o.ClassName.Name.Contains("Cryopod") || o.ClassString.Contains("SoulTrap_") || o.ClassString.Contains("Vivarium_"))
                         && o.HasAnyProperty("CustomItemDatas")
                 )
-                .ToList();
+                .ToArray();
 
             foreach (var o in validStored)
             {
-                var customData = o.Properties.First(p => p.NameString == "CustomItemDatas") as PropertyArray;
+                if (!(o.Properties.First(p => p.NameString == "CustomItemDatas") is PropertyArray customData)) continue;
+
                 var cryoDataOffset = 0;
-
-                if (customData != null)
+                if (customData.Value is ArkArrayUnknown dataByteArray)
                 {
+                    var dataBytes = dataByteArray.ToArray<byte>();
 
-                    var dataByteArray = customData?.Value as ArkArrayUnknown;
-                    if (dataByteArray != null)
+                    if (dataBytes.Length > 0)
                     {
-                        var dataBytes = dataByteArray?.ToArray<byte>();
-
-                        if (dataBytes != null && dataBytes.Length > 0)
+                        using (MemoryStream ms = new MemoryStream(dataBytes))
                         {
-                            using (MemoryStream ms = new MemoryStream(dataBytes))
+                            using (ArkArchive a = new ArkArchive(ms))
                             {
-                                using (ArkArchive a = new ArkArchive(ms))
+                                if (dataByteArray.Count >= 10) // only care about first 10 bytes, not sure sure what comes after that.
                                 {
-
-                                    if (dataByteArray?.Count >= 10) //only care about first 10 bytes, not sure sure what comes after that.
-                                    {
-                                        var cryoUnknown1 = a.ReadShort();
-                                        var cryoUnknown2 = a.ReadInt();
-                                        cryoDataOffset = a.ReadInt();
-
-                                    }
-                                    else
-                                    {
-                                        cryoDataOffset = 0;
-                                    }
+                                    var cryoUnknown1 = a.ReadShort();
+                                    var cryoUnknown2 = a.ReadInt();
+                                    cryoDataOffset = a.ReadInt();
+                                }
+                                else
+                                {
+                                    cryoDataOffset = 0;
                                 }
                             }
                         }
-                    }
-
-
-                    var creatureDataOffset = cryoDataOffset + storedOffset;
-                    archive.Position = creatureDataOffset;
-
-                    ArkCryoStore cryoStore = new ArkCryoStore(archive);
-                    cryoStore.LoadProperties(archive);
-
-                    var dinoComponent = cryoStore?.Objects[0];
-                    var dinoCharacterStatusComponent = cryoStore?.Objects[1];
-                    var dinoInventoryComponent = cryoStore?.Objects[2];
-
-                    //re-map and add properties as appropriate
-                    if (dinoComponent != null)
-                    {
-                        dinoComponent.IsCryo = o.ClassString.ToLowerInvariant().Contains ("cryo");
-                        
-                        // the tribe name is stored in `TamerString`, non-cryoed creatures have the property `TribeName` for that.
-                        if (dinoComponent.GetPropertyValue<string>("TribeName")?.Length == 0 && dinoComponent.GetPropertyValue<string>("TamerString")?.Length > 0)
-                            dinoComponent.Properties.Add(new PropertyString("TribeName", dinoComponent.GetPropertyValue<string>("TamerString")));
-
-
-                        //get parent of cryopod owner inventory
-                        var podParentRef = o.GetPropertyValue<ObjectReference>("OwnerInventory");
-                        if (podParentRef != null)
-                        {
-                            var podParent = inventoryContainers.FirstOrDefault(x => x.GetPropertyValue<ObjectReference>("MyInventoryComponent")?.ObjectId == podParentRef.ObjectId);
-
-                            //determine if we need to re-team the podded animal
-                            if (podParent != null)
-                            {
-                                dinoComponent.Parent = podParent;
-
-                                int obTeam = dinoComponent.GetPropertyValue<int>("TargetingTeam");
-                                int containerTeam = podParent.GetPropertyValue<int>("TargetingTeam");
-                                if (obTeam != containerTeam)
-                                {
-                                    var propertyIndex = dinoComponent.Properties.FindIndex(i => i.NameString == "TargetingTeam");
-                                    if (propertyIndex != -1)
-                                    {
-                                        dinoComponent.Properties.RemoveAt(propertyIndex);
-                                    }
-                                    dinoComponent.Properties.Add(new PropertyInt("TargetingTeam", containerTeam));
-
-
-                                    if (dinoComponent.HasAnyProperty("TamingTeamID"))
-                                    {
-                                        dinoComponent.Properties.RemoveAt(dinoComponent.Properties.FindIndex(i => i.NameString == "TamingTeamID"));
-                                        dinoComponent.Properties.Add(new PropertyInt("TamingTeamID", containerTeam));
-                                    }
-
-                                }
-                            }
-                        }
-
-                        if (dinoCharacterStatusComponent != null)
-                        {
-                            addObject(dinoCharacterStatusComponent, true);
-
-                            var statusComponentRef = dinoComponent.GetTypedProperty<PropertyObject>("MyCharacterStatusComponent");
-                            statusComponentRef.Value.ObjectId = dinoCharacterStatusComponent.Id;
-
-                        }
-
-                        if (dinoInventoryComponent != null)
-                        {
-                            addObject(dinoInventoryComponent, true);
-
-                            var inventoryComponentRef = dinoComponent.GetTypedProperty<PropertyObject>("MyInventoryComponent");
-                            inventoryComponentRef.Value.ObjectId = dinoInventoryComponent.Id;
-                        }
-
-                        addObject(dinoComponent, true);
-
                     }
                 }
+
+                var creatureDataOffset = cryoDataOffset + storedOffset;
+                archive.Position = creatureDataOffset;
+
+                ArkCryoStore cryoStore = new ArkCryoStore(archive);
+                if (!cryoStore.Objects.Any()) continue;
+                cryoStore.LoadProperties(archive);
+
+                var dinoComponent = cryoStore.Objects[0];
+                var dinoCharacterStatusComponent = cryoStore.Objects[1];
+                var dinoInventoryComponent = cryoStore.Objects[2];
+
+                //re-map and add properties as appropriate
+                if (dinoComponent == null) continue;
+
+                dinoComponent.IsInCryo = true;
+
+                // the tribe name is stored in `TamerString`, non-cryoed creatures have the property `TribeName` for that.
+                if (dinoComponent.GetPropertyValue<string>("TribeName")?.Length == 0 && dinoComponent.GetPropertyValue<string>("TamerString")?.Length > 0)
+                    dinoComponent.Properties.Add(new PropertyString("TribeName", dinoComponent.GetPropertyValue<string>("TamerString")));
+
+                //get parent of cryopod owner inventory
+                var podParentRef = o.GetPropertyValue<ObjectReference>("OwnerInventory");
+                if (podParentRef != null)
+                {
+                    var podParent = inventoryContainers.FirstOrDefault(x => x.GetPropertyValue<ObjectReference>("MyInventoryComponent")?.ObjectId == podParentRef.ObjectId);
+
+                    //determine if we need to re-team the podded animal
+                    if (podParent != null)
+                    {
+                        dinoComponent.Parent = podParent;
+
+                        int obTeam = dinoComponent.GetPropertyValue<int>("TargetingTeam");
+                        int containerTeam = podParent.GetPropertyValue<int>("TargetingTeam");
+                        if (obTeam != containerTeam)
+                        {
+                            var propertyIndex = dinoComponent.Properties.FindIndex(i => i.NameString == "TargetingTeam");
+                            if (propertyIndex != -1)
+                            {
+                                dinoComponent.Properties.RemoveAt(propertyIndex);
+                            }
+                            dinoComponent.Properties.Add(new PropertyInt("TargetingTeam", containerTeam));
+
+
+                            if (dinoComponent.HasAnyProperty("TamingTeamID"))
+                            {
+                                dinoComponent.Properties.RemoveAt(dinoComponent.Properties.FindIndex(i => i.NameString == "TamingTeamID"));
+                                dinoComponent.Properties.Add(new PropertyInt("TamingTeamID", containerTeam));
+                            }
+
+                        }
+                    }
+                }
+
+                if (dinoCharacterStatusComponent != null)
+                {
+                    addObject(dinoCharacterStatusComponent, true);
+
+                    var statusComponentRef = dinoComponent.GetTypedProperty<PropertyObject>("MyCharacterStatusComponent");
+                    statusComponentRef.Value.ObjectId = dinoCharacterStatusComponent.Id;
+
+                }
+
+                if (dinoInventoryComponent != null)
+                {
+                    addObject(dinoInventoryComponent, true);
+
+                    var inventoryComponentRef = dinoComponent.GetTypedProperty<PropertyObject>("MyInventoryComponent");
+                    inventoryComponentRef.Value.ObjectId = dinoInventoryComponent.Id;
+                }
+
+                addObject(dinoComponent, true);
             }
         }
 
@@ -609,7 +598,7 @@ namespace SavegameToolkit
 
                     // assume the first object is the creature object
                     string creatureActorId = storedGameObjects[0].Names[0].ToString();
-                    storedGameObjects[0].IsCryo = true;
+                    storedGameObjects[0].IsInCryo = true;
 
                     // the tribe name is stored in `TamerString`, non-cryoed creatures have the property `TribeName` for that.
                     if (!storedGameObjects[0].HasAnyProperty("TribeName"))

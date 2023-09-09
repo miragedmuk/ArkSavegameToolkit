@@ -40,7 +40,7 @@ namespace SavegameToolkit {
         [JsonProperty(Order = 7)]
         public LocationData Location { get; private set; }
 
-        public bool IsCryo {get; set;}
+        public bool IsInCryo {get; set;}
 
 
         /// <summary>

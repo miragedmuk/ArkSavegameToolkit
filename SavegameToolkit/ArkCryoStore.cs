@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace SavegameToolkit
 {
     internal class ArkCryoStore : GameObjectContainerMixin
     {
-        private long propertiesOffset = 0;
+        private long propertiesOffset;
 
         public ArkCryoStore(ArkArchive archive)
         {
@@ -16,49 +13,45 @@ namespace SavegameToolkit
 
         public void ReadBinary(ArkArchive archive)
         {
-            var objectType = archive.ReadString(); //type?
-            if (objectType.Equals("dino", StringComparison.InvariantCultureIgnoreCase))
+            var objectType = archive.ReadString().ToLowerInvariant(); // type?
+            if (objectType != "dino" && objectType != "settings") return;
+
+            var stringPropertyCount = archive.ReadInt();
+            while (stringPropertyCount-- > 0)
             {
-                var stringPropertyCount = archive.ReadInt(); 
-                while(stringPropertyCount-- > 0)
-                {
-                    archive.ReadString();
-                }
-      
-                var floatPropertyCount = archive.ReadInt(); 
-                while(floatPropertyCount-- > 0)
-                {
-                    archive.ReadFloat();
-                }
-
-                var colorNameCount = archive.ReadInt(); //color name count
-                while (colorNameCount-- > 0)
-                {
-                    var colorName = archive.ReadString();
-                }
-
-
-                var cryoStoreUnknown1 = archive.ReadLong();
-
-                //store properties offset
-                propertiesOffset = archive.Position;
-
-                //load GameObjects
-                Objects.Clear();
-
-                bool useNameTable = archive.UseNameTable;
-                archive.UseNameTable = false;
-
-                var objectCount = archive.ReadInt();
-                while (objectCount-- > 0)
-                {
-                    Objects.Add(new GameObject(archive));
-                }
-
-                archive.UseNameTable = useNameTable;
+                archive.ReadString(); // e.g. creature info (species, name, tribe, etc.)
             }
 
+            var floatPropertyCount = archive.ReadInt();
+            while (floatPropertyCount-- > 0)
+            {
+                archive.ReadFloat(); // e.g. stats
+            }
 
+            var colorNameCount = archive.ReadInt(); // color name count
+            while (colorNameCount-- > 0)
+            {
+                var colorName = archive.ReadString();
+            }
+
+            var cryoStoreUnknown1 = archive.ReadLong();
+
+            // store properties offset
+            propertiesOffset = archive.Position;
+
+            // load GameObjects
+            Objects.Clear();
+
+            bool useNameTable = archive.UseNameTable;
+            archive.UseNameTable = false;
+
+            var objectCount = archive.ReadInt();
+            while (objectCount-- > 0)
+            {
+                Objects.Add(new GameObject(archive));
+            }
+
+            archive.UseNameTable = useNameTable;
         }
 
         public void LoadProperties(ArkArchive archive)
@@ -68,7 +61,7 @@ namespace SavegameToolkit
 
             var pos = archive.Position;
 
-            for(int i=0; i < Objects.Count;i++)
+            for (int i = 0; i < Objects.Count; i++)
             {
                 Objects[i].LoadProperties(archive, new GameObject(), (int)propertiesOffset);
             }
