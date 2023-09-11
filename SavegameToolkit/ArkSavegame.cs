@@ -121,6 +121,8 @@ namespace SavegameToolkit
         {
             SaveVersion = archive.ReadShort();
 
+            archive.SaveVersion = SaveVersion;
+
             if (SaveVersion < 5 || SaveVersion > 12)
             {
                 throw new NotSupportedException("Found unknown Version " + SaveVersion);
@@ -456,30 +458,14 @@ namespace SavegameToolkit
             {
                 if (!(o.Properties.First(p => p.NameString == "CustomItemDatas") is PropertyArray customData)) continue;
 
-                var cryoDataOffset = 0;
-                if (customData.Value is ArkArrayUnknown dataByteArray)
-                {
-                    var dataBytes = dataByteArray.ToArray<byte>();
-
-                    if (dataBytes.Length > 0)
-                    {
-                        using (MemoryStream ms = new MemoryStream(dataBytes))
-                        {
-                            using (ArkArchive a = new ArkArchive(ms))
-                            {
-                                if (dataByteArray.Count >= 10) // only care about first 10 bytes, not sure sure what comes after that.
-                                {
-                                    var cryoUnknown1 = a.ReadShort();
-                                    var cryoUnknown2 = a.ReadInt();
-                                    cryoDataOffset = a.ReadInt();
-                                }
-                                else
-                                {
-                                    cryoDataOffset = 0;
-                                }
-                            }
-                        }
-                    }
+                long cryoDataOffset = 0;
+                if (
+                    archive.SaveVersion > 10
+                    && customData.Value is ArkArrayStruct redirectors
+                    && redirectors.All(x => x is StructCustomItemDataRef)
+                ) {
+                    // TODO: probably best to: in cryos, take first entry. in souls, take second.
+                    cryoDataOffset = ((StructCustomItemDataRef)redirectors[0]).Position;
                 }
 
                 var creatureDataOffset = cryoDataOffset + storedOffset;

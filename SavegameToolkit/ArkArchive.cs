@@ -39,6 +39,8 @@ namespace SavegameToolkit {
 
         private readonly byte[] smallByteBuffer = new byte[bufferSize];
 
+        public short SaveVersion { get; internal set; }
+
         /// <summary>
         /// Enable or disable the current nameTable
         /// </summary>
@@ -81,6 +83,7 @@ namespace SavegameToolkit {
             mbbReader = new BinaryReader(mbb);
             state = toClone.state;
             isSlice = true;
+            SaveVersion = toClone.SaveVersion;
         }
 
         public ArkArchive Clone() => new ArkArchive(this);

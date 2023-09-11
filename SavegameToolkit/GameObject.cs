@@ -280,7 +280,7 @@ namespace SavegameToolkit {
         }
 
         public void LoadProperties(ArkArchive archive, GameObject next, int propertiesBlockOffset) {
-            int offset = propertiesBlockOffset + propertiesOffset;
+            long offset = propertiesBlockOffset + propertiesOffset;
             long nextOffset = propertiesBlockOffset + next?.propertiesOffset ?? archive.Limit;
 
             archive.Position = offset;

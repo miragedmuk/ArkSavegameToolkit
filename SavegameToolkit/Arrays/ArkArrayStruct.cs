@@ -18,11 +18,30 @@ namespace SavegameToolkit.Arrays {
         private static readonly ArkName vector = ArkName.ConstantPlain("Vector");
 
         private static readonly ArkName linearColor = ArkName.ConstantPlain("LinearColor");
+        
+        private static readonly ArkName customItemDatas = ArkName.ConstantPlain("CustomItemDatas");
 
         public override void Init(ArkArchive archive, PropertyArray property) {
             int size = archive.ReadInt();
 
             ArkName structType = StructRegistry.MapArrayNameToTypeName(property.Name);
+            
+            // In versions 11 and above, CustomItemDatas properties seem to be redirected into separate archives. This
+            // is likely due to ARK writing different save file segments in memory first to circumvent internal 2GB
+            // limits on in-memory writes.
+            // The redirector seems to be implemented in a similar way to "plain" structs like Vectors, Quats, Colours.
+            // If the conditions match, let's take a detour here.
+            if (archive.SaveVersion > 10 && structType == null && property.Name == customItemDatas)
+            {
+                for (int n = 0; n < size; n++)
+                {
+                    StructCustomItemDataRef cidRef = new StructCustomItemDataRef();
+                    cidRef.Init(archive);
+                    Add(cidRef);
+                }
+                return;
+            }
+            
             if (structType == null) {
                 if (size * 4 + 4 == property.DataSize) {
                     structType = color;
