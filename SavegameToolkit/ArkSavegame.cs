@@ -446,7 +446,7 @@ namespace SavegameToolkit
             if (!options.CryopodCreatures) return;
 
             var inventoryContainers = Objects.Where(x => x.GetPropertyValue<ObjectReference>("MyInventoryComponent") != null).ToList();
-            
+
             var validStored = Objects
                 .Where(o =>
                         (o.ClassName.Name.Contains("Cryopod") || o.ClassString.Contains("SoulTrap_") || o.ClassString.Contains("Vivarium_"))
@@ -463,9 +463,11 @@ namespace SavegameToolkit
                     archive.SaveVersion > 10
                     && customData.Value is ArkArrayStruct redirectors
                     && redirectors.All(x => x is StructCustomItemDataRef)
-                ) {
-                    // TODO: probably best to: in cryos, take first entry. in souls, take second.
-                    cryoDataOffset = ((StructCustomItemDataRef)redirectors[0]).Position;
+                )
+                {
+                    // cryopods use the first redirector, soulball use the second
+                    var redirectorIndex = o.ClassName.Name.Contains("Cryopod") ? 0 : 1;
+                    cryoDataOffset = ((StructCustomItemDataRef)redirectors[redirectorIndex]).Position;
                 }
 
                 var creatureDataOffset = cryoDataOffset + storedOffset;
