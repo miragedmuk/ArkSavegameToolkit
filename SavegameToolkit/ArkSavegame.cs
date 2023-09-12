@@ -476,7 +476,7 @@ namespace SavegameToolkit
                     )
                 {
                     // cryopods use the first redirector, soulballs use the second
-                    var redirectorIndex = o.ClassName.Name.Contains("Cryopod") ? 0 : 1;
+                    var redirectorIndex = x.ClassString.Contains("Cryopod") ? 0 : 1;
                     cryoDataOffset = ((StructCustomItemDataRef)redirectors[redirectorIndex]).Position;
                     dataFile = ((StructCustomItemDataRef)redirectors[redirectorIndex]).StoreDataIndex;
                 }
