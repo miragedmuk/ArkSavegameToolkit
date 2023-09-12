@@ -52,7 +52,7 @@ namespace SavegameToolkit.Types {
         public static ArkName From(string name) {
             if (name == null || !nameCache.TryGetValue(name, out ArkName value)) {
                 value = new ArkName(name);
-                nameCache.Add(name, value);
+                nameCache[name] = value;
             }
             return value;
         }
