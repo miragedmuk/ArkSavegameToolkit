@@ -460,7 +460,12 @@ namespace SavegameToolkit
                 )
                 .ToList();
 
-            List<CryoStoreData> storedOffsets = new List<CryoStoreData>();
+            //create and initialise dictionary to hold the offset data.
+            Dictionary<int, List<StoredItemOffset>> storedItemsWithOffsets = new Dictionary<int, List<StoredItemOffset>>();
+            for (int i = 0; i < StoredDataOffsets.Count; i++)
+            {
+                storedItemsWithOffsets.Add(i, new List<StoredItemOffset>());
+            }
 
             validStored.ForEach(x =>
             {
@@ -477,122 +482,134 @@ namespace SavegameToolkit
                 {
                     // cryopods use the first redirector, soulballs use the second
                     var redirectorIndex = x.ClassString.Contains("Cryopod") ? 0 : 1;
-                    cryoDataOffset = ((StructCustomItemDataRef)redirectors[redirectorIndex]).Position;
-                    dataFile = ((StructCustomItemDataRef)redirectors[redirectorIndex]).StoreDataIndex;
-                }
+                    
+                    // ensure redir
+                    if(redirectorIndex < redirectors.Count-1)
+                    {
+                        cryoDataOffset = ((StructCustomItemDataRef)redirectors[redirectorIndex]).Position;
+                        dataFile = ((StructCustomItemDataRef)redirectors[redirectorIndex]).StoreDataIndex;
 
-                storedOffsets.Add(new CryoStoreData() { ParentObject = x, Offset = cryoDataOffset, StoreDataIndex = dataFile });
+                        //store to be read-in forward-only for performance.
+                        storedItemsWithOffsets[dataFile].Add(new StoredItemOffset() { ParentObject = x, ObjectOffset = cryoDataOffset });
+                    }
+                }
 
             });
             validStored = null;
 
-            //sort and read bytes into memory between this and next offset
-            var sortedOffsets = storedOffsets.OrderBy(x => x.StoreDataIndex).ThenBy(x => x.Offset).ToList();
-            for (int x = 0; x < sortedOffsets.Count; x++)
-            {
-                var storedObject = sortedOffsets[x];
-                int storedOffsetIndex = storedObject.StoreDataIndex;
-                var offsetData = StoredDataOffsets[storedOffsetIndex];
 
-                var storedOffset = offsetData.Item1 + storedObject.Offset;
-                long nextOffset = offsetData.Item1 + offsetData.Item2;
-                if (x < sortedOffsets.Count - 1)
+
+
+            // parse stored data in offset order, adding parsed objects to list
+            // to allow the slower re-parenting and addition to the Objects collection
+            // to be done after the file read.
+            List<Tuple<GameObject, GameObject, GameObject, GameObject>> addedCryoObjects = new List<Tuple<GameObject, GameObject, GameObject, GameObject>>();
+            for (int fileIndex = 0; fileIndex < 4; fileIndex++)
+            {
+                if (storedItemsWithOffsets[fileIndex].Count > 0)
                 {
-                    var nextItem = sortedOffsets[x + 1];
-                    if (nextItem.StoreDataIndex == storedObject.StoreDataIndex)
+                    var sortedOffsetItems = storedItemsWithOffsets[fileIndex].OrderBy(o => o.ObjectOffset).ToList();
+
+                    for (int x = 0; x < sortedOffsetItems.Count; x++)
                     {
-                        nextOffset = nextItem.Offset + offsetData.Item1;
+                        var storedObject = sortedOffsetItems[x];
+                        var offsetData = StoredDataOffsets[fileIndex];
+
+                        var storedOffset = offsetData.Item1 + storedObject.ObjectOffset;
+                        long nextOffset = offsetData.Item1 + offsetData.Item2;
+                        if (x < sortedOffsetItems.Count - 1)
+                        {
+                            int nextItemIndex = x + 1;
+                            var nextItem = sortedOffsetItems[nextItemIndex];
+                            nextOffset = nextItem.ObjectOffset + offsetData.Item1;
+                        }
+
+                        archive.Position = storedOffset;
+                        ArkCryoStore cryoStore = new ArkCryoStore(archive);
+                        if (cryoStore.Objects.Any())
+                        {
+                            cryoStore.LoadProperties(archive);
+
+                            //Store all required GameObjects to correctly read in this cryo creature
+                            addedCryoObjects.Add(new Tuple<GameObject, GameObject, GameObject, GameObject>(storedObject.ParentObject, cryoStore.Objects[0], cryoStore.Objects[1], cryoStore.Objects[2]));
+                        }
                     }
                 }
-
-                archive.Position = storedOffset;
-                int bytesToRead = (int)(nextOffset - storedOffset);
-                storedObject.Data = archive.ReadBytes(bytesToRead);
             }
-            storedOffsets = new List<CryoStoreData>();
 
-            //load the cryo creature data in parallel to speed up read
-            Parallel.ForEach(sortedOffsets, o =>
+            if (addedCryoObjects.Count > 0)
             {
-                if (o.Data.Length == 0) return;
-                using (MemoryStream ms = new MemoryStream(o.Data))
+                Parallel.ForEach(addedCryoObjects, cryoObjects =>
                 {
-                    using (ArkArchive storedArchive = new ArkArchive(ms))
+                    var dinoStorage = cryoObjects.Item1;
+                    var dinoComponent = cryoObjects.Item2;
+                    var dinoCharacterStatusComponent = cryoObjects.Item3;
+                    var dinoInventoryComponent = cryoObjects.Item3;
+
+                    //re-map and add properties as appropriate
+                    if (dinoComponent == null) return;
+
+                    dinoComponent.IsInCryo = true;
+
+                    // the tribe name is stored in `TamerString`, non-cryoed creatures have the property `TribeName` for that.
+                    if (dinoComponent.GetPropertyValue<string>("TribeName")?.Length == 0 && dinoComponent.GetPropertyValue<string>("TamerString")?.Length > 0)
+                        dinoComponent.Properties.Add(new PropertyString("TribeName", dinoComponent.GetPropertyValue<string>("TamerString")));
+
+                    //get parent of cryopod owner inventory
+                    var podParentRef = dinoStorage.GetPropertyValue<ObjectReference>("OwnerInventory");
+                    if (podParentRef != null)
                     {
-                        ArkCryoStore cryoStore = new ArkCryoStore(storedArchive);
-                        if (!cryoStore.Objects.Any()) return;
+                        var podParent = inventoryContainers.FirstOrDefault(x => x.GetPropertyValue<ObjectReference>("MyInventoryComponent")?.ObjectId == podParentRef.ObjectId);
 
-                        cryoStore.LoadProperties(storedArchive);
-
-
-                        var dinoComponent = cryoStore.Objects[0];
-                        var dinoCharacterStatusComponent = cryoStore.Objects[1];
-                        var dinoInventoryComponent = cryoStore.Objects[2];
-
-                        //re-map and add properties as appropriate
-                        if (dinoComponent == null) return;
-
-                        dinoComponent.IsInCryo = true;
-
-                        // the tribe name is stored in `TamerString`, non-cryoed creatures have the property `TribeName` for that.
-                        if (dinoComponent.GetPropertyValue<string>("TribeName")?.Length == 0 && dinoComponent.GetPropertyValue<string>("TamerString")?.Length > 0)
-                            dinoComponent.Properties.Add(new PropertyString("TribeName", dinoComponent.GetPropertyValue<string>("TamerString")));
-
-                        //get parent of cryopod owner inventory
-                        var podParentRef = o.ParentObject.GetPropertyValue<ObjectReference>("OwnerInventory");
-                        if (podParentRef != null)
+                        //determine if we need to re-team the podded animal
+                        if (podParent != null)
                         {
-                            var podParent = inventoryContainers.FirstOrDefault(x => x.GetPropertyValue<ObjectReference>("MyInventoryComponent")?.ObjectId == podParentRef.ObjectId);
+                            dinoComponent.Parent = podParent;
 
-                            //determine if we need to re-team the podded animal
-                            if (podParent != null)
+                            int obTeam = dinoComponent.GetPropertyValue<int>("TargetingTeam");
+                            int containerTeam = podParent.GetPropertyValue<int>("TargetingTeam");
+                            if (obTeam != containerTeam)
                             {
-                                dinoComponent.Parent = podParent;
-
-                                int obTeam = dinoComponent.GetPropertyValue<int>("TargetingTeam");
-                                int containerTeam = podParent.GetPropertyValue<int>("TargetingTeam");
-                                if (obTeam != containerTeam)
+                                var propertyIndex = dinoComponent.Properties.FindIndex(i => i.NameString == "TargetingTeam");
+                                if (propertyIndex != -1)
                                 {
-                                    var propertyIndex = dinoComponent.Properties.FindIndex(i => i.NameString == "TargetingTeam");
-                                    if (propertyIndex != -1)
-                                    {
-                                        dinoComponent.Properties.RemoveAt(propertyIndex);
-                                    }
-                                    dinoComponent.Properties.Add(new PropertyInt("TargetingTeam", containerTeam));
-
-
-                                    if (dinoComponent.HasAnyProperty("TamingTeamID"))
-                                    {
-                                        dinoComponent.Properties.RemoveAt(dinoComponent.Properties.FindIndex(i => i.NameString == "TamingTeamID"));
-                                        dinoComponent.Properties.Add(new PropertyInt("TamingTeamID", containerTeam));
-                                    }
-
+                                    dinoComponent.Properties.RemoveAt(propertyIndex);
                                 }
+                                dinoComponent.Properties.Add(new PropertyInt("TargetingTeam", containerTeam));
+
+
+                                if (dinoComponent.HasAnyProperty("TamingTeamID"))
+                                {
+                                    dinoComponent.Properties.RemoveAt(dinoComponent.Properties.FindIndex(i => i.NameString == "TamingTeamID"));
+                                    dinoComponent.Properties.Add(new PropertyInt("TamingTeamID", containerTeam));
+                                }
+
                             }
                         }
+                    }
 
-                        if (dinoCharacterStatusComponent != null)
-                        {
-                            addObject(dinoCharacterStatusComponent, false);
+                    if (dinoCharacterStatusComponent != null)
+                    {
+                        addObject(dinoCharacterStatusComponent, false);
 
-                            var statusComponentRef = dinoComponent.GetTypedProperty<PropertyObject>("MyCharacterStatusComponent");
-                            statusComponentRef.Value.ObjectId = dinoCharacterStatusComponent.Id;
-
-                        }
-
-                        if (dinoInventoryComponent != null)
-                        {
-                            addObject(dinoInventoryComponent, false);
-
-                            var inventoryComponentRef = dinoComponent.GetTypedProperty<PropertyObject>("MyInventoryComponent");
-                            inventoryComponentRef.Value.ObjectId = dinoInventoryComponent.Id;
-                        }
-
-                        addObject(dinoComponent, false);
+                        var statusComponentRef = dinoComponent.GetTypedProperty<PropertyObject>("MyCharacterStatusComponent");
+                        statusComponentRef.Value.ObjectId = dinoCharacterStatusComponent.Id;
 
                     }
-                }
-            });
+
+                    if (dinoInventoryComponent != null)
+                    {
+                        addObject(dinoInventoryComponent, false);
+
+                        var inventoryComponentRef = dinoComponent.GetTypedProperty<PropertyObject>("MyInventoryComponent");
+                        inventoryComponentRef.Value.ObjectId = dinoInventoryComponent.Id;
+                    }
+
+                    addObject(dinoComponent, false);
+
+                });
+            }
+
 
         }
 
