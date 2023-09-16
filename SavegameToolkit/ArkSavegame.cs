@@ -484,7 +484,7 @@ namespace SavegameToolkit
                     var redirectorIndex = x.ClassString.Contains("Cryopod") ? 0 : 1;
                     
                     // ensure redir
-                    if(redirectorIndex < redirectors.Count-1)
+                    if(redirectorIndex < redirectors.Count)
                     {
                         cryoDataOffset = ((StructCustomItemDataRef)redirectors[redirectorIndex]).Position;
                         dataFile = ((StructCustomItemDataRef)redirectors[redirectorIndex]).StoreDataIndex;
